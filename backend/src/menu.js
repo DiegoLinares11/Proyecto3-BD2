@@ -13,10 +13,11 @@ const ask = (q) => new Promise((res) => rl.question(q, res));
 
 // Menú principal
 const mainMenu = async () => {
-  console.log("\n🧩 MENÚ DE ROMPECABEZAS");
+  console.log("\n MENÚ DE ROMPECABEZAS");
   console.log("1. Crear rompecabezas");
   console.log("2. Obtener rompecabezas por ID");
-  console.log("3. Salir");
+  console.log("3. Generar instrucciones para armar rompecabezas");
+  console.log("4. Salir");
 
   const opt = await ask("\nSeleccione una opción (1-3): ");
 
@@ -28,11 +29,14 @@ const mainMenu = async () => {
       await obtenerRompecabezas();
       break;
     case "3":
-      console.log("👋 ¡Hasta luego!");
+        await generarInstrucciones();
+        break;
+    case "4":
+      console.log(" ¡Hasta luego!");
       rl.close();
       process.exit(0);
     default:
-      console.log("❌ Opción inválida");
+      console.log(" Opción inválida");
       mainMenu();
   }
 };
@@ -48,7 +52,7 @@ const crearRompecabezasInteractivo = async () => {
   const pieces = [];
   const n = parseInt(await ask("¿Cuántas piezas desea ingresar?: "));
   for (let i = 0; i < n; i++) {
-    console.log(`\n🧩 Pieza ${i + 1}`);
+    console.log(`\n Pieza ${i + 1}`);
     const pid = await ask("  ID: ");
     const forma = await ask("  Forma: ");
     const pos = await ask("  Posición relativa: ");
@@ -58,7 +62,7 @@ const crearRompecabezasInteractivo = async () => {
   const connections = [];
   const c = parseInt(await ask("¿Cuántas conexiones desea ingresar?: "));
   for (let i = 0; i < c; i++) {
-    console.log(`\n🔗 Conexión ${i + 1}`);
+    console.log(`\n Conexión ${i + 1}`);
     const sourceId = await ask("  ID de pieza origen: ");
     const targetId = await ask("  ID de pieza destino: ");
     const sourceSide = await ask("  Lado desde origen (ej: abajo): ");
@@ -72,13 +76,31 @@ const crearRompecabezasInteractivo = async () => {
       pieces,
       connections,
     });
-    console.log("\n✅ Rompecabezas creado exitosamente:", res.data.message);
+    console.log("\nRompecabezas creado exitosamente:", res.data.message);
   } catch (err) {
-    console.error("❌ Error al crear rompecabezas:", err.response?.data || err.message);
+    console.error(" Error al crear rompecabezas:", err.response?.data || err.message);
   }
 
   mainMenu();
 };
+
+const generarInstrucciones = async () => {
+  const id = await ask("ID del rompecabezas: ");
+  const piezaInicial = await ask("ID de la pieza inicial: ");
+
+  try {
+    const res = await axios.get(`${BASE_URL}/${id}/instrucciones?start=${piezaInicial}`);
+    console.log("\n Instrucciones para armar el rompecabezas:");
+    res.data.instrucciones.forEach((linea, i) => {
+      console.log(`${i + 1}. ${linea}`);
+    });
+  } catch (err) {
+    console.error("Error al generar instrucciones:", err.response?.data || err.message);
+  }
+
+  mainMenu();
+};
+
 
 // Función para obtener rompecabezas
 const obtenerRompecabezas = async () => {
@@ -86,10 +108,10 @@ const obtenerRompecabezas = async () => {
 
   try {
     const res = await axios.get(`${BASE_URL}/${id}`);
-    console.log("\n📦 Resultado:");
+    console.log("\nResultado:");
     console.dir(res.data, { depth: null });
   } catch (err) {
-    console.error("❌ Error al obtener rompecabezas:", err.response?.data || err.message);
+    console.error(" Error al obtener rompecabezas:", err.response?.data || err.message);
   }
 
   mainMenu();
