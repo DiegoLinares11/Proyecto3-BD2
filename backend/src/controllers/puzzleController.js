@@ -87,9 +87,119 @@ const getPuzzle = async (req, res) => {
 
     res.json({ rompecabezas, piezas, conexiones });
   } catch (error) {
-    console.error('❌ Error en getPuzzle:', error);
+    console.error(' Error en getPuzzle:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-module.exports = { createPuzzle, getPuzzle };
+const getPuzzleInstructions = async (req, res) => {
+  const { id: puzzleId } = req.params;
+  const startId = req.query.start;
+
+  if (!startId) {
+    return res.status(400).json({ error: 'Debe proporcionar el ID de la pieza inicial con ?start=...' });
+  }
+
+  const query = `
+    MATCH (r:Rompecabezas {id: $puzzleId})<-[:PERTENECE_A]-(start:Pieza {id: $startId})
+    CALL apoc.path.expand(start, 'CONECTA_CON>', null, 0, 100) YIELD path
+    WITH nodes(path) AS piezas, relationships(path) AS conexiones
+    UNWIND range(0, size(piezas) - 2) AS i
+    WITH piezas[i] AS from, piezas[i+1] AS to, conexiones[i] AS conn
+    RETURN from.id AS desdeId, from.forma AS formaDesde, from.posicion_relativa AS posDesde,
+           conn.lado AS ladoDesde,
+           to.id AS haciaId, to.forma AS formaHacia, to.posicion_relativa AS posHacia
+  `;
+
+  try {
+    const result = await neo4j.executeQuery(query, { puzzleId, startId });
+
+    const instrucciones = result.map((record, idx) => {
+      const desde = record.desdeId;
+      const formaDesde = record.formaDesde;
+      const posDesde = record.posDesde;
+      const ladoDesde = record.ladoDesde;
+
+      const hacia = record.haciaId;
+      const formaHacia = record.formaHacia;
+      const posHacia = record.posHacia;
+
+      return `Paso ${idx + 1}: Desde la pieza ${desde} (forma ${formaDesde}, posición ${posDesde}), conéctala por el lado ${ladoDesde} con la pieza ${hacia} (forma ${formaHacia}, posición ${posHacia}).`;
+    });
+
+    res.json({ instrucciones });
+  } catch (error) {
+    console.error('Error al obtener instrucciones del rompecabezas:', error);
+    res.status(500).json({ error: 'Error al obtener instrucciones.' });
+  }
+};
+
+const buildPuzzleSteps = async (req, res) => {
+  const puzzleId = req.params.id;
+  const startId = req.query.start;
+
+  if (!startId) {
+    return res.status(400).json({ error: 'Debes especificar la pieza inicial con ?start=ID' });
+  }
+
+  try {
+    const visited = new Set();
+    const steps = [];
+
+    // Cola para BFS: cada entrada es { currentId, fromId, fromSide }
+    const queue = [{ currentId: startId, fromId: null, fromSide: null }];
+
+    while (queue.length > 0) {
+      const { currentId, fromId, fromSide } = queue.shift();
+
+      if (visited.has(currentId)) continue;
+      visited.add(currentId);
+
+      // Obtener datos de la pieza actual y sus conexiones
+      const query = `
+        MATCH (p:Pieza {id: $id})-[:PERTENECE_A]->(r:Rompecabezas {id: $puzzleId})
+        OPTIONAL MATCH (p)-[c:CONECTA_CON]->(p2:Pieza)
+        RETURN p, collect({to: p2, lado: c.lado}) AS conexiones
+      `;
+
+      const result = await neo4j.executeQuery(query, { id: currentId, puzzleId });
+      const record = result[0];
+
+      const pieza = record.p.properties;
+      const conexiones = record.conexiones;
+
+      // Si esta pieza vino de otra, agrega paso
+      if (fromId && fromSide) {
+        steps.push({
+          texto: `Desde la pieza ${fromId} (forma ${pieza.forma}, posición ${pieza.posicion_relativa}), ` +
+                 `conéctala por el lado ${fromSide} con la pieza ${pieza.id} ` +
+                 `(forma ${pieza.forma}, posición ${pieza.posicion_relativa})`
+        });
+      }
+
+      // Añadir piezas conectadas a la cola
+      for (const conexion of conexiones) {
+        if (conexion.to && conexion.to.properties && !visited.has(conexion.to.properties.id)) {
+          queue.push({
+            currentId: conexion.to.properties.id,
+            fromId: pieza.id,
+            fromSide: conexion.lado
+          });
+        }
+      }
+    }
+
+    const instrucciones = steps.map((step, i) => `Paso ${i + 1}: ${step.texto}`);
+    res.json({ instrucciones });
+  } catch (error) {
+    console.error('Error al construir el rompecabezas:', error);
+    res.status(500).json({ error: 'No se pudieron construir las instrucciones.' });
+  }
+};
+
+module.exports = { 
+    createPuzzle, 
+    getPuzzle, 
+    getPuzzleInstructions,
+    buildPuzzleSteps
+};

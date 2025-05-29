@@ -1,5 +1,5 @@
 const express = require('express');
-const { createPuzzle, getPuzzle } = require('../controllers/puzzleController');
+const { createPuzzle, getPuzzle, getPuzzleInstructions, buildPuzzleSteps } = require('../controllers/puzzleController');
 const router = express.Router();
 
 // Middleware de validación
@@ -19,4 +19,5 @@ const validatePuzzleData = (req, res, next) => {
 
 router.post('/', validatePuzzleData, createPuzzle);
 router.get('/:id', getPuzzle);
+router.get('/:id/instrucciones', buildPuzzleSteps);
 module.exports = router;
