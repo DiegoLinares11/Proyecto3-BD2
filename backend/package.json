@@ -1,6 +1,29 @@
 {
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "API para gestión de rompecabezas con Neo4j",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest --watchAll"
+  },
+  "keywords": [
+    "neo4j",
+    "puzzle",
+    "graphdatabase"
+  ],
+  "author": "3 + 8",
+  "license": "MIT",
+  "type": "commonjs",
   "dependencies": {
-    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
     "neo4j-driver": "^5.28.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
   }
 }
