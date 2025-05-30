@@ -1,2 +1,24 @@
-# Proyecto3-BD2
-Proyecto de base de datos 2 para decirles como armar un rompezabezas.. 
+# PROY3-DB
+## Backend
+```
+npm install
+
+```
+
+## Ejecutar el frontend:
+Instala dependencias
+
+```
+cd frontend
+npm install
+```
+
+En frontend/.env :
+
+```
+VITE_API_URL=http://localhost:3000/api
+```
+Ejecuta el frontend
+```
+npm run dev
+```
