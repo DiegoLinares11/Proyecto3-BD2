@@ -1,57 +1,62 @@
+
 const neo4j = require('../utils/neo4j');
 
-const buildPuzzleSteps = async (req, res) => {
-  const { startPieceId } = req.params;
+// Construye el grafo del puzzle { piezaId: [{ destinoId, lado }] }
+async function getPuzzleGraph(puzzleId) {
+  const query = `
+    MATCH (r:Rompecabezas {id: $puzzleId})<-[:PERTENECE_A]-(p:Pieza)
+    OPTIONAL MATCH (p)-[c:CONECTA_CON]->(p2:Pieza)
+    RETURN p.id AS from, p2.id AS to, c.lado AS lado
+  `;
+  const results = await neo4j.executeQuery(query, { puzzleId });
+  const graph = {};
+  results.forEach(r => {
+    if (!r.from) return;
+    if (!graph[r.from]) graph[r.from] = [];
+    if (r.to) graph[r.from].push({ destinoId: r.to, lado: r.lado });
+  });
+  return graph;
+}
 
-  try {
-    const visited = new Set();
-    const steps = [];
+// Algoritmo BFS para armar el puzzle desde una pieza inicial
+function recorridoBFS(grafo, piezaInicial) {
+  const visitados = new Set();
+  const pasos = [];
+  const queue = [{ actual: piezaInicial, anterior: null, lado: null }];
 
-    // Cola para BFS: cada entrada es { currentId, fromId, fromSide }
-    const queue = [{ currentId: startPieceId, fromId: null, fromSide: null }];
-
-    while (queue.length > 0) {
-      const { currentId, fromId, fromSide } = queue.shift();
-
-      if (visited.has(currentId)) continue;
-      visited.add(currentId);
-
-      // Obtener detalles de la pieza actual
-      const query = `
-        MATCH (p:Pieza {id: $id})
-        OPTIONAL MATCH (p)-[c:CONECTA_CON]->(p2:Pieza)
-        RETURN p, collect({toId: p2.id, side: c.lado}) AS conexiones
-      `;
-      const result = await neo4j.executeQuery(query, { id: currentId });
-      const record = result[0];
-
-      const pieza = record.p.properties;
-      const conexiones = record.conexiones;
-
-      // Agregar paso
-      steps.push({
-        piezaId: pieza.id,
-        forma: pieza.forma,
-        posicion_relativa: pieza.posicion_relativa,
-        conectadaDesde: fromId,
-        ladoConexion: fromSide
-      });
-
-      // Agregar piezas conectadas a la cola
-      for (const conexion of conexiones) {
-        if (conexion.toId && !visited.has(conexion.toId)) {
-          queue.push({
-            currentId: conexion.toId,
-            fromId: pieza.id,
-            fromSide: conexion.side
-          });
-        }
+  while (queue.length > 0) {
+    const { actual, anterior, lado } = queue.shift();
+    if (visitados.has(actual)) continue;
+    visitados.add(actual);
+    if (anterior) {
+      pasos.push(`Conecta la pieza ${actual} al lado ${lado} de ${anterior}`);
+    }
+    for (const conn of (grafo[actual] || [])) {
+      if (!visitados.has(conn.destinoId)) {
+        queue.push({ actual: conn.destinoId, anterior: actual, lado: conn.lado });
       }
     }
-
-    res.json({ pasos: steps });
-  } catch (error) {
-    console.error('Error al construir el rompecabezas:', error);
-    res.status(500).json({ error: error.message });
   }
-};
+  return pasos;
+}
+
+// Algoritmo DFS alternativo (opcional)
+function recorridoDFS(grafo, piezaInicial) {
+  const visitados = new Set();
+  const pasos = [];
+  function dfs(actual, anterior, lado) {
+    visitados.add(actual);
+    if (anterior) {
+      pasos.push(`Conecta la pieza ${actual} al lado ${lado} de ${anterior}`);
+    }
+    for (const conn of (grafo[actual] || [])) {
+      if (!visitados.has(conn.destinoId)) {
+        dfs(conn.destinoId, actual, conn.lado);
+      }
+    }
+  }
+  dfs(piezaInicial, null, null);
+  return pasos;
+}
+
+module.exports = { getPuzzleGraph, recorridoBFS, recorridoDFS };

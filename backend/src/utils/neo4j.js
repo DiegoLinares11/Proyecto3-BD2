@@ -15,10 +15,10 @@ class Neo4jConnection {
         const session = this.driver.session();
         try {
             await session.run('RETURN 1');
-            console.log('✅ Conexión a Neo4j establecida con éxito');
+            console.log('Conexión a Neo4j establecida con éxito');
             return true;
         } catch (error) {
-            console.error('❌ Error de conexión a Neo4j:', error.message);
+            console.error('Error de conexión a Neo4j:', error.message);
             return false;
         } finally {
             await session.close();
@@ -40,7 +40,7 @@ class Neo4jConnection {
 
     async close() {
         await this.driver.close();
-        console.log('🔌 Conexión a Neo4j cerrada');
+        console.log('Conexión a Neo4j cerrada');
     }
 }
 
