@@ -597,7 +597,7 @@ function App() {
             ) : (
               <div className="puzzle-empty-state">
                 <Puzzle size={48} className="puzzle-empty-icon" />
-                <p className="puzzle-empty-text">No hay rompecabeza registrados</p>
+                <p className="puzzle-empty-text">No hay rompecabezas registrados</p>
                 <button
                   onClick={() => setActiveTab("register")}
                   className="puzzle-button puzzle-button-primary puzzle-mt-4"
